@@ -2,7 +2,7 @@ import multer from "multer";
 
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {//cb->call back
-      cb(null, "./public/temp")//address where the files will be stored
+      cb(null, "./public/temp")//address where the files will be stored in local storage pc
     },
     filename: function (req, file, cb) {
        

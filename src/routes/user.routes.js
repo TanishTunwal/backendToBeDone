@@ -1,11 +1,11 @@
 import { Router } from "express";
 import { 
-    changeCurrentPassword, 
+    changeCurrentPassword,
     getCurrentUser, 
     getUserChannelProfile, 
     getWatchHistory, 
     loginUser, 
-    logoutUser, 
+    logoutUser,  
     refreshAccessToken, 
     registerUser, 
     updateUserAvatar, 
@@ -31,7 +31,7 @@ router.route("/register").post(
     registerUser
 );
 
-router.route("/login").post(upload.none(), loginUser);
+router.route("/login").post(loginUser);
 
 //secured routes
 router.route("/logout").post(verifyJWT, logoutUser);

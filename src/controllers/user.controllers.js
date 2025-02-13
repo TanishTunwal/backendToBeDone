@@ -9,11 +9,11 @@ import mongoose from "mongoose"
 const generateAccessAndRefreshTokens = async (userId) => {
     try {
         const user = await User.findById(userId)
-        const accessToken = user.generateAccessToken();
+        const accessToken = user.generateAccessToken(); 
         const refreshToken = user.generateRefreshToken()
 
         user.refreshToken = refreshToken//dynamic field addion
-        await user.save({ validateBeforeSave: false })
+        await user.save({ validateBeforeSave: false })//must before making any change in model
 
         return { accessToken, refreshToken }
 
@@ -24,8 +24,8 @@ const generateAccessAndRefreshTokens = async (userId) => {
  
 const registerUser = asyncHandler(async (req, res) => {
     const { fullname, email, username, password } = req.body//will return the body from the frontend
-    console.log("email: ", email);
-    // console.log("usrnam",username);
+    // console.log("email: ", email);
+    // console.log("usrnam ",username);
 
     // if(fullname === "") {//aise ek ek check bhi laga sakte ha ya fir niche wala bhi 
     //     throw new ApiError(400,"fullname is required")   
@@ -42,10 +42,10 @@ const registerUser = asyncHandler(async (req, res) => {
     })
 
     if (existedUser) {
-        console.log(existedUser);
-        throw new ApiError(409, "user with email or username already exist")
+        // console.log(existedUser);
+        throw new ApiError(400, "user with email or username already exist")
     }
-    console.log(req.files);
+    // console.log(req.files);
 
     const avatarLocalPath = req.files?.avatar[0]?.path
     // console.log(avatarLocalPath);
@@ -62,7 +62,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
     const avatar = await uploadCloudinary(avatarLocalPath)
     const coverImage = await uploadCloudinary(coverImageLocalPath)
-    console.log(avatar);
+    // console.log(avatar);
 
  
     if (!avatar) {
@@ -71,7 +71,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
     const user = await User.create({//can lead to potential error as told so we have to also await here
         fullname,
-        avatar: avatar.url,
+        avatar: avatar ? avatar.url : "",
         coverImage: coverImage ? coverImage.url : "", //coverImage?.url || "" another way
         email,
         password,
@@ -83,8 +83,7 @@ const registerUser = asyncHandler(async (req, res) => {
     )
 
     if (!createdUser) {
-        console.log(createdUser);
-
+        // console.log(createdUser);
         throw new ApiError(500, "something went wrong while registring the user")
     }
 
