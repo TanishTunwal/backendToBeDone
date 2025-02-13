@@ -39,7 +39,7 @@ router.route("/refresh-token").post(refreshAccessToken);
 router.route("/change-password").post(upload.none(), verifyJWT, changeCurrentPassword);
 router.route("/current-user").get(verifyJWT, getCurrentUser);
 
-router.route("/update-user").patch(upload.none(), verifyJWT, updateAccountDetails);
+router.route("/update-user").patch(verifyJWT, updateAccountDetails);
 router.route("/update-avatar").patch(verifyJWT, upload.single('avatar'), updateUserAvatar);
 router.route("/update-coverImg").patch(verifyJWT, upload.single('coverImage'), updateUserCoverImage);
 

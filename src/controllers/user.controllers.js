@@ -84,6 +84,7 @@ const registerUser = asyncHandler(async (req, res) => {
 
     if (!createdUser) {
         // console.log(createdUser);
+
         throw new ApiError(500, "something went wrong while registring the user")
     }
 
@@ -215,7 +216,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         return res
             .status(200)
             .cookie("accessToken", accessToken, options)
-            .cookie("refreshToken", refreshToken, options)
+            .cookie("refreshToken", newRefresehToken, options)
             .json(
                 new ApiResponse(200, { accessToken, refreshToken: newRefresehToken }, "Access Token refreshed")
             )
@@ -264,26 +265,33 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 //advice: agar khi pe update karna ha to usske alag banke endpoint hit karva de isse conjuction kam hota ha varna sara data bar bar lejna padega
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
-    const { fullname, email } = req.body
-    
+    try {
+        const { fullname, email } = req.body;
+        
+        if (!fullname || !email) {
+            throw new ApiError(400, "All fields are required");
+        }
 
-    if (!fullname || !email) {
-        throw new ApiError(400, "All fields are required")
+        if (!req.user) {
+            throw new ApiError(401, "Unauthorized");
+        }
+
+        const existingUser = await User.findOne({ email });
+        if (existingUser && existingUser._id.toString() !== req.user._id.toString()) {
+            throw new ApiError(400, "Email already in use");
+        }
+
+        const user = await User.findByIdAndUpdate(
+            req.user._id,
+            { $set: { fullname, email } },
+            { new: true }
+        ).select("-password");
+
+        return res.status(200).json(new ApiResponse(200, user, "Details have been updated"));
+    } catch (error) {
+        throw new ApiError(500, "Something went wrong");
     }
-
-    const user = await User.findByIdAndUpdate(
-        req.user?._id,
-        {
-            $set: {
-                fullname, email
-                // email : email
-            }
-        },
-        { new: true } //update hone ke bad jo info ha vo return hogi 
-    ).select("-password")
-
-    return res.status(200).json(new ApiResponse(200, user, "details have been updated"))
-})
+});
 
 const updateUserCoverImage = asyncHandler(async (req, res) => {
     const coverImageLocalPath = req.file?.path
@@ -293,6 +301,11 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     }
 
     const imageToBeDeleted = req.user?.coverImage;
+
+    if (!imageToBeDeleted) {
+        throw new ApiError(400, "Image is not avalible")
+    }
+
 
     const coverImage = await uploadCloudinary(coverImageLocalPath)
 
@@ -311,11 +324,7 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
         { new: true }
     )
 
-    if (!imageToBeDeleted) {
-        throw new ApiError(400, "Image is not avalible")
-    }
-
-    const deleteImg = await deleteFromCloudinary(req.user?.coverImage);
+    const deleteImg = await deleteFromCloudinary(imageToBeDeleted);
 
     if (!deleteImg) {
         throw new ApiError(400, "error while deleting the file")
@@ -329,6 +338,9 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 })
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
+    if (!req.user) {
+        throw new ApiError(401, "Unauthorized");
+    }
     const avatarLocalPath = req.file?.path
 
     if (!avatarLocalPath) {
@@ -337,9 +349,13 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 
     const imageToBeDeleted = req.user?.avatar
 
+    if (!imageToBeDeleted) {
+        throw new ApiError(400, "avatar image is not avalible")
+    }
+
     const avatar = await uploadCloudinary(avatarLocalPath)
 
-    if (!avatar.url) {
+    if (!avatar?.url) {
         throw new ApiError(400, "Error while uploading the file to cloudinary")
     }
 
@@ -354,11 +370,11 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
         { new: true }
     )
 
-    if (!imageToBeDeleted) {
-        throw new ApiError(400, "Image is not avalible")
+    if (!user) {
+        throw new ApiError(500, "Failed to update user avatar");
     }
 
-    const deleteImg = await deleteFromCloudinary(req.user?.avatar);
+    const deleteImg = await deleteFromCloudinary(imageToBeDeleted);
 
     if (!deleteImg) {
         throw new ApiError(400, "error while deleting the file")
@@ -470,7 +486,6 @@ const getWatchHistory = asyncHandler(async (req, res) => {
                                         fullname: 1,
                                         username: 1,
                                         avatar: 1,
-
                                     }
                                 }
                             ]
@@ -479,7 +494,7 @@ const getWatchHistory = asyncHandler(async (req, res) => {
                     {
                         $addFields: {
                             owner: {
-                                $first: "$owner"//we could have user arrayElementAt
+                                $first: "$owner"//we could have used arrayElementAt
                             }
                         }
                     }

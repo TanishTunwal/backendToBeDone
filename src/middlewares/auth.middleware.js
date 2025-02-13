@@ -5,6 +5,7 @@ import { User } from "../models/user.model.js"; // User model from database
 
 // Middleware to verify JWT token
 export const verifyJWT = asyncHandler(async (req, res, next) => {
+    // This line extracts the JWT access token from the Authorization header in an HTTP request.
     // Get token from cookies or Authorization header
     const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ", "");
     //The Authorization header typically looks like: Bearer <token>
