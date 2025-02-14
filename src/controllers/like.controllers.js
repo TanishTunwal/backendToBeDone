@@ -35,34 +35,42 @@ const toggleVideoLike = asyncHandler(async (req, res) => {
 })
 
 const toggleCommentLike = asyncHandler(async (req, res) => {
-    const { commentId } = req.params
+    const { commentId } = req.params;
 
     if (!isValidObjectId(commentId)) {
-        throw new ApiError(400, "comment id doesnt exist")
+        throw new ApiError(400, "Invalid Comment ID");
     }
 
-    if (!req.user?.id) {
-        throw new ApiError(400, "user not authenticated")
+    if (!req.user?._id) {
+        throw new ApiError(400, "User not authenticated");
     }
 
-    const Comment = await Like.findOne({ Comment: commentId, likedBy: req.user?._id });
+    // Convert IDs to ObjectId
+    const commentObjectId = new mongoose.Types.ObjectId(commentId);
+    const userObjectId = new mongoose.Types.ObjectId(req.user._id);
 
+    // console.log("Checking commentId:", commentObjectId);
+    // console.log("Checking userId:", userObjectId);
 
-    if (Comment) {
-        await Like.findOneAndDelete({ Comment: v, likedBy: req.user?._id });
+    const existingLike = await Like.findOne({ comment: commentObjectId, likedBy: userObjectId });
 
-        return res.status(200).json(new ApiResponse(200, null, "Like was toggled"))
+    // console.log("Existing like:", existingLike);
+
+    if (existingLike) {
+        await Like.findOneAndDelete({ comment: commentObjectId, likedBy: userObjectId });
+        // console.log("Like deleted successfully");
+        return res.status(200).json(new ApiResponse(200, null, "Like was toggled"));
     }
 
-    const createComment = await Like.create({
-        Comment: commentId,
-        likedBy: req.user?._id
-    })
+    const newLike = await Like.create({
+        comment: commentObjectId,
+        likedBy: userObjectId
+    });
 
+    // console.log("New like created:", newLike);
 
-    return res.status(200).json(new ApiResponse(200, createComment, "Like was toggled"))
-
-})
+    return res.status(200).json(new ApiResponse(200, newLike, "Like was toggled"));
+});
 
 const toggleTweetLike = asyncHandler(async (req, res) => {
     const { tweetId } = req.params
@@ -164,7 +172,7 @@ const getLikedVideos = asyncHandler(async (req, res) => {
         .json(
             new ApiResponse(
                 200,
-                likedVideosAggegate,
+                likedVideo,
                 "liked videos fetched successfully"
             )
         );

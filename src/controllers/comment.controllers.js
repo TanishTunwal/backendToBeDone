@@ -120,7 +120,10 @@ const updateComment = asyncHandler(async (req, res) => {
     const {commentID} = req.params
     const {content} = req.body
 
-    if(!commentID) {
+    console.log(commentID);
+    
+
+    if(!isValidObjectId(commentID)) {
         throw new ApiError(400,"comment doesnt exist")
     }
 
@@ -128,25 +131,11 @@ const updateComment = asyncHandler(async (req, res) => {
         throw new ApiError(400,"comment is Empty")
     }
 
-    const commentCheck = await Comment.findById(commentID);
-
-    if (!commentCheck) {
-        throw new ApiError(404, "Comment not found");
-    }
-
-    if (commentCheck?.owner.toString() !== req.user?._id.toString()) {
-        throw new ApiError(400, "only comment owner can edit their comment");
-    }
-
     const comment = await Comment.findOneAndUpdate(
-        {_id : commentID},
-        {
-            $set : {
-                content
-            }
-        },
-        {new : true}
-    )
+        { _id: commentId, owner: req.user?._id },
+        { $set: { content } },
+        { new: true }
+    );
 
     if(!comment) {
         throw new ApiError(400,"error occured while updating the comment")
@@ -158,8 +147,11 @@ const updateComment = asyncHandler(async (req, res) => {
 const deleteComment = asyncHandler(async (req, res) => {
     // TODO: delete a comment
     const { commentId } = req.params;
-
+    console.log(commentId);
+    
+    
     const comment = await Comment.findById(commentId);
+    console.log(comment);
 
     if (!comment) {
         throw new ApiError(404, "Comment not found");

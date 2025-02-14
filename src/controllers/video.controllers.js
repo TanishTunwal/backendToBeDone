@@ -87,7 +87,7 @@ const getVideoById = asyncHandler(async (req, res) => {//halka sa complete kar l
                 foreignField: "video",
                 as: "videoLikes",
                 pipeline: [
-                    {
+                    {  
                         $lookup: {
                             from: "users",
                             localField: "likedBy",
@@ -265,7 +265,7 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
     }
 
     const video = await Video.findOneAndUpdate(
-        videoId,
+        {_id : videoId},
         { isPublished: !checkValidation?.isPublished },
         { new: true }
     )
