@@ -6,55 +6,78 @@ import { ApiResponse } from "../utiles/ApiResponse.js"
 import { asyncHandler } from "../utiles/asyncHandler.js"
 
 
+
 const toggleSubscription = asyncHandler(async (req, res) => {
-    const { channel } = req.params
+    const { channelId } = req.params;
 
     if (!req.user._id) {
-        throw new ApiError(400, "User not authenticated")
+        throw new ApiError(400, "User not authenticated");
     }
+
+    if (!isValidObjectId(new mongoose.Types.ObjectId(channelId))) {
+        throw new ApiError(400, "This channel doesn't exist");
+    }
+
+    console.log(channelId);
+
+
+    console.log(req.user?._id);
+    
 
     const isSubscribed = await Subscription.findOne({
         subscriber: req.user?._id,
-        channel: channel
-    })
+        channel: new mongoose.Types.ObjectId(channelId)
+    });
+
+    console.log("isSubscribed:", isSubscribed);
+
+    console.log(isSubscribed);
+    
 
     if (isSubscribed) {
-        await Subscription.deleteOne({ _id: isSubscribed._id })
+        // Unsubscribe
+        const deleteResult = await Subscription.deleteOne({ _id: isSubscribed._id });
+        console.log("deleteResult:", deleteResult);
+
         return res.status(200).json(
             new ApiResponse(
                 200,
                 null,
-                "toggle was successful"
+                "Unsubscribed successfully"
             )
-        )
+        );
+    } else {
+        // Subscribe
+        const subscription = await Subscription.create({
+            subscriber: req.user?._id,
+            channel: new mongoose.Types.ObjectId(channelId)
+        });
+        console.log("subscription:", subscription);
+
+        return res.status(200).json(
+            new ApiResponse(
+                200,
+                subscription,
+                "Subscribed successfully"
+            )
+        );
     }
-
-    const subscription = await Subscription.create({
-        subscriber: req.user?._id,
-        channel: channel
-    })
-
-    return res.status(200).json(
-        new ApiResponse(
-            200,
-            subscription,
-            "toggle was successful"
-        )
-    )
-})
+});
 
 // This code is a MongoDB aggregation pipeline used to retrieve subscribers of a specific channelId and
 //  get additional information about them, including whether they are subscribed back to the given channel
 //   and how many subscribers they have.
 // controller to return subscriber list of a channel
 const getUserChannelSubscribers = asyncHandler(async (req, res) => {
-    const { channelId } = req.params
+    let { channelId } = req.params; // Use "channelId" instead of "subscriberId"
+
+    console.log(channelId);
 
     if (!isValidObjectId(channelId)) {
         throw new ApiError(400, "Invalid channelId");
     }
 
-    channelId = new mongoose.Types.ObjectId(channelId);
+    channelId = new mongoose.Types.ObjectId(channelId); // Convert to ObjectId
 
     const subscribers = await Subscription.aggregate([
         {
@@ -62,14 +85,14 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
                 channel: channelId,
             },
         },
-        {// Get subscriber details from users
+        {
             $lookup: {
                 from: "users",
                 localField: "subscriber",
                 foreignField: "_id",
                 as: "subscriber",
                 pipeline: [
-                    {//3 $lookup → Find if subscriber has subscribed back
+                    {
                         $lookup: {
                             from: "subscriptions",
                             localField: "_id",
@@ -80,16 +103,7 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
                     {
                         $addFields: {
                             subscribedToSubscriber: {
-                                $cond: {
-                                    if: {
-                                        $in: [
-                                            channelId,
-                                            "$subscribedToSubscriber.subscriber",
-                                        ],
-                                    },
-                                    then: true,
-                                    else: false,
-                                },
+                                $in: [channelId, "$subscribedToSubscriber.channel"], // Fix: Check "channel" field
                             },
                             subscribersCount: {
                                 $size: "$subscribedToSubscriber",
@@ -117,30 +131,25 @@ const getUserChannelSubscribers = asyncHandler(async (req, res) => {
         },
     ]);
 
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                subscribers,
-                "subscribers fetched successfully"
-            )
-        );
-})
+    return res.status(200).json(
+        new ApiResponse(200, subscribers, "Subscribers fetched successfully")
+    );
+});
+
 
 // controller to return channel list to which user has subscribed
 const getSubscribedChannels = asyncHandler(async (req, res) => {
-    const { subscriberId } = req.params
+    const { subscriberId } = req.params;
 
     const subscribedChannels = await Subscription.aggregate([
         {
             $match: {
-                subscriber: new mongoose.Types.ObjectId(subscriberId)
-            }
+                subscriber: new mongoose.Types.ObjectId(subscriberId),
+            },
         },
         {
             $lookup: {
-                from: "User",
+                from: "users",
                 localField: "channel",
                 foreignField: "_id",
                 as: "subscribedChannel",
@@ -151,20 +160,20 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
                             localField: "_id",
                             foreignField: "owner",
                             as: "videos",
-                        }
+                        },
                     },
                     {
-                        $addFields : {
-                            latestVideo : {
-                                $last : "$videos"
-                            }
-                        }
-                    }
-                ]
-            }
+                        $addFields: {
+                            latestVideo: {
+                                $last: "$videos",
+                            },
+                        },
+                    },
+                ],
+            },
         },
         {
-            $unwind : "subscribedChannel"
+            $unwind: "$subscribedChannel",
         },
         {
             $project: {
@@ -187,8 +196,8 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
                     },
                 },
             },
-        }
-    ])
+        },
+    ]);
 
     return res
         .status(200)
@@ -200,7 +209,6 @@ const getSubscribedChannels = asyncHandler(async (req, res) => {
             )
         );
 });
-
 
 export {
     toggleSubscription,

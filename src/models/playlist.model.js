@@ -14,7 +14,7 @@ const playlistSchema = new Schema(
         videos: [
             {
                 type: Schema.Types.ObjectId,
-                ref: "Video"
+                ref: "Video" 
             }
         ],
         owner: {

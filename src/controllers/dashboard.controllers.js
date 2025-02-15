@@ -14,11 +14,10 @@ const getChannelStats = asyncHandler(async (req, res) => {
         throw new ApiError(400,"User not validate")
     }
 
-
     const totalSubscribers = await Subscription.aggregate([
         {
             $match : {
-                channel : mongoose.Types.ObjectId(userID)
+                channel : new mongoose.Types.ObjectId(userID)
             }
         }, 
         {
@@ -34,7 +33,7 @@ const getChannelStats = asyncHandler(async (req, res) => {
     const video = await Video.aggregate([
         {
             $match : {
-                owner : mongoose.Types.ObjectId(userID)
+                owner : new mongoose.Types.ObjectId(userID)
             }
         },
         {
